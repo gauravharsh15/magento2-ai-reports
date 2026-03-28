@@ -1,5 +1,5 @@
 {
-    "name": "gaurav/module-ai-reports",
+    "name": "gauravharsh/module-ai-reports",
     "description": "An AI-powered Natural Language to SQL reporting tool for Adobe Commerce.",
     "type": "magento2-module",
     "version": "1.0.0",
