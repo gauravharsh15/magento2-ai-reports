@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="general" translate="label" sortOrder="10">
+            <label>General</label>
+        </tab>
+        <section id="aireports" translate="label" type="text" sortOrder="150" showInDefault="1"
+            showInWebsite="1" showInStore="1">
+            <label>AI Reports Configuration</label>
+            <tab>general</tab>
+            <resource>Gaurav_AiReports::config</resource>
+            <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1"
+                showInWebsite="1" showInStore="1">
+                <label>AI Connection Settings</label>
+
+                <field id="provider" translate="label" type="select" sortOrder="5" showInDefault="1"
+                    showInWebsite="1" showInStore="1">
+                    <label>AI Provider</label>
+                    <source_model>Gaurav\AiReports\Model\Config\Source\Provider</source_model>
+                </field>
+
+                <field id="api_key" translate="label" type="obscure" sortOrder="10"
+                    showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>API Key</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+
+                <field id="api_url" translate="label" type="text" sortOrder="15" showInDefault="1"
+                    showInWebsite="1" showInStore="1">
+                    <label>API Endpoint URL</label>
+                    <comment><![CDATA[e.g., https://api.openai.com/v1/chat/completions OR https://api.anthropic.com/v1/messages]]></comment>
+                </field>
+
+                <field id="model_name" translate="label" type="text" sortOrder="18"
+                    showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Model Name</label>
+                    <comment>e.g., gpt-4o, claude-3-opus-20240229, gemini-1.5-flash</comment>
+                </field>
+
+                <field id="system_prompt" translate="label" type="textarea" sortOrder="20"
+                    showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Base System Prompt</label>
+                    <comment>Instruct the AI about your database architecture.</comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

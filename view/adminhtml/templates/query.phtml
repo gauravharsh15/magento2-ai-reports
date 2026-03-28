@@ -1,0 +1,129 @@
+<div class="ai-report-container" style="background: #fff; padding: 20px; border: 1px solid #ccc; margin-bottom: 20px;">
+    <h2>Ask the Database</h2>
+    <p>Enter your request in plain English (e.g., <em>"Show me the top 5 customers by grand total spent"</em>).</p>
+    
+    <textarea id="ai_prompt" rows="4" style="width: 100%; margin-bottom: 10px; padding: 10px;" placeholder="Type your prompt here..."></textarea>
+    
+    <button id="execute_ai_query" class="action-primary" type="button" style="padding: 10px 20px; font-weight: bold;">Generate & Execute SQL</button>
+</div>
+
+<div id="ai_sql_container" style="display: none; background: #f4f4f4; padding: 15px; border-left: 4px solid #eb5202; margin-bottom: 20px; font-family: monospace;">
+    <h4 style="margin-top: 0; color: #333;">Generated SQL Query:</h4>
+    <pre style="margin: 0; white-space: pre-wrap; word-break: break-all; color: #d64937;"><code id="ai_sql_output"></code></pre>
+</div>
+
+<div id="ai_results_container" style="display: none; background: #fff; padding: 20px; border: 1px solid #ccc; overflow-x: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Results <span id="ai_results_count" style="font-size: 14px; font-weight: normal; color: #666; margin-left: 8px;"></span></h3>
+        <button id="export_csv" class="action-secondary" type="button" style="display: none;">Download CSV</button>
+    </div>
+    <table id="ai_results_table" class="data-grid">
+        <thead>
+            <tr id="ai_results_head"></tr>
+        </thead>
+        <tbody id="ai_results_body"></tbody>
+    </table>
+</div>
+
+<script>
+require(['jquery', 'mage/url'], function($, urlBuilder) {
+    var latestData = [];
+    $('#execute_ai_query').on('click', function() {
+        var promptText = $('#ai_prompt').val();
+        if(!promptText) {
+            alert('Please enter a prompt.');
+            return;
+        }
+
+        // Reset UI state
+        $('#ai_results_container').hide();
+        $('#ai_sql_container').hide();
+        $('#export_csv').hide();
+        $('#ai_results_head, #ai_results_body, #ai_sql_output, #ai_results_count').empty();
+        latestData = [];
+
+        var ajaxUrl = "<?= $block->escapeUrl($block->getUrl('aireports/query/execute')) ?>";
+
+        $.ajax({
+            url: ajaxUrl,
+            type: 'POST',
+            data: {
+                prompt: promptText,
+                form_key: FORM_KEY
+            },
+            showLoader: true, // This triggers Magento's native admin full-screen loader
+            success: function(response) {
+                if(response.error) {
+                    alert("Error: " + response.message);
+                    return;
+                }
+
+                if(response.sql_executed) {
+                    $('#ai_sql_output').text(response.sql_executed);
+                    $('#ai_sql_container').show();
+                }
+
+                if(response.data && response.data.length > 0) {
+                    $('#ai_results_container').show();
+                    latestData = response.data;
+                    $('#export_csv').show();
+                    
+                    var rowCount = response.data.length;
+                    var rowText = rowCount === 1 ? '1 row' : rowCount + ' rows';
+                    $('#ai_results_count').text('(' + rowText + ')');
+                    
+                    var columns = Object.keys(response.data[0]);
+                    var headerHtml = '';
+                    columns.forEach(function(col) {
+                        headerHtml += '<th class="data-grid-th">' + col + '</th>';
+                    });
+                    $('#ai_results_head').html(headerHtml);
+
+                    var bodyHtml = '';
+                    response.data.forEach(function(row) {
+                        bodyHtml += '<tr>';
+                        columns.forEach(function(col) {
+                            bodyHtml += '<td>' + (row[col] !== null ? row[col] : '<em>NULL</em>') + '</td>';
+                        });
+                        bodyHtml += '</tr>';
+                    });
+                    $('#ai_results_body').html(bodyHtml);
+                } else {
+                    $('#ai_results_container').show();
+                    $('#ai_results_count').text('(0 rows)');
+                    $('#ai_results_body').html('<tr><td colspan="100%">Query executed successfully, but returned 0 rows. Check the SQL query above.</td></tr>');
+                }
+            },
+            error: function() {
+                alert('An error occurred while contacting the server.');
+            }
+        });
+    });
+
+    // CSV Export Logic
+    $('#export_csv').on('click', function() {
+        if (!latestData || latestData.length === 0) return;
+
+        var columns = Object.keys(latestData[0]);
+        var csvContent = "data:text/csv;charset=utf-8,";
+        
+        csvContent += columns.join(",") + "\r\n";
+        
+        latestData.forEach(function(row) {
+            var rowArray = columns.map(function(col) {
+                var cellData = row[col] !== null ? String(row[col]) : '';
+                return '"' + cellData.replace(/"/g, '""') + '"'; 
+            });
+            csvContent += rowArray.join(",") + "\r\n";
+        });
+
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "ai_report_" + Math.floor(Date.now() / 1000) + ".csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+});
+</script>

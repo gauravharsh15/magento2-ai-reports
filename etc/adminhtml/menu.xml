@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Backend/etc/menu.xsd">
+    <menu>
+        <add id="Gaurav_AiReports::query" title="AI SQL Reports" module="Gaurav_AiReports" sortOrder="50" parent="Magento_Reports::report" action="aireports/query/index" resource="Gaurav_AiReports::query"/>
+    </menu>
+</config>

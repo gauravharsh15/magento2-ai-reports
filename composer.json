@@ -1,0 +1,22 @@
+{
+    "name": "gaurav/module-ai-reports",
+    "description": "An AI-powered Natural Language to SQL reporting tool for Adobe Commerce.",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": [
+        "OSL-3.0",
+        "AFL-3.0"
+    ],
+    "require": {
+        "php": "~8.2.0||~8.3.0",
+        "magento/framework": "^103.0"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Gaurav\\AiReports\\": ""
+        }
+    }
+}
