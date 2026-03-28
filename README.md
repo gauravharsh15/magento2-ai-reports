@@ -20,7 +20,7 @@ Instead of writing complex EAV joins manually, simply ask: *"Show me the top 5 c
 Install via Composer:
 
 ```bash
-composer require gaurav/module-ai-reports
+composer require gauravharsh/module-ai-reports
 bin/magento module:enable Gaurav_AiReports
 bin/magento setup:upgrade
 bin/magento setup:di:compile
