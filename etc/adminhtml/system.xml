@@ -49,31 +49,26 @@
                 showInWebsite="0" showInStore="0">
                 <label>Read-Only Database Connection</label>
                 <comment><![CDATA[
-                    Global only - there is one database, so this can't safely vary per website/store view.
-                    This tool must run against a dedicated MySQL user that only has SELECT
-                    privileges - never the Magento application's own read/write user. It connects to the
-                    same host and database as Magento itself (from env.php); only the credentials below
-                    differ. Create the user with:<br/>
+                    Not configurable here on purpose - the read-only DB credentials live in
+                    app/etc/env.php, not in this admin config, so they can't be viewed or changed by
+                    anyone through the admin UI (not even someone with the "AI Reports Config" permission).
+                    Changing them requires server file access, the same bar as Magento's own DB credentials.<br/><br/>
+                    1) Create a MySQL user with SELECT only (never the main Magento database user):<br/>
                     <code>CREATE USER 'aireports_ro'@'%' IDENTIFIED BY 'a-strong-random-password';<br/>
                     GRANT SELECT ON your_database_name.* TO 'aireports_ro'@'%';<br/>
                     FLUSH PRIVILEGES;</code><br/>
                     Restrict the host part ('%') to your application server's IP where possible, and
                     consider REVOKE SELECT on individual sensitive tables (e.g. admin_user, oauth_token,
-                    vault_payment_token) for extra defense in depth on top of the module's own guardrails below.
-                    Until this is configured, the query tool refuses to run.
+                    vault_payment_token) for extra defense in depth on top of the module's own guardrails below.<br/><br/>
+                    2) Add the following to app/etc/env.php and re-deploy (do not commit this file):<br/>
+                    <code>'aireports' => [<br/>
+                    &nbsp;&nbsp;'readonly_connection' => [<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;'username' => 'aireports_ro',<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;'password' => 'a-strong-random-password',<br/>
+                    &nbsp;&nbsp;],<br/>
+                    ],</code><br/>
+                    Until this is in place, the query tool refuses to run.
                 ]]></comment>
-
-                <field id="db_username" translate="label" type="text" sortOrder="10" showInDefault="1"
-                    showInWebsite="0" showInStore="0">
-                    <label>Read-Only Username</label>
-                    <comment>Must be a MySQL user granted SELECT only - never the main Magento database user.</comment>
-                </field>
-
-                <field id="db_password" translate="label" type="obscure" sortOrder="20"
-                    showInDefault="1" showInWebsite="0" showInStore="0">
-                    <label>Read-Only Password</label>
-                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                </field>
             </group>
 
             <group id="guardrails" translate="label" type="text" sortOrder="30" showInDefault="1"

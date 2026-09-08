@@ -26,7 +26,7 @@ Store owners and support staff often need one-off answers from the database — 
 
 This module executes AI-generated SQL against your production database, so read-only access is enforced at multiple independent layers rather than relying on any single check:
 
-1. **A dedicated, credentialed-separately, read-only MySQL user.** The tool refuses to run at all until you configure one under *Stores > Configuration > AI Reports > Read-Only Database Connection*. It connects to the same host/schema Magento already uses (from `env.php`) — only the username and password differ, so there's nothing to mistype. This connection is never the same one Magento's application code uses for everything else.
+1. **A dedicated, read-only MySQL user, configured only in `app/etc/env.php`.** The tool refuses to run at all until this is set. It connects to the same host/schema Magento already uses (from `env.php`) — only the username and password differ. Because the credential lives in `env.php` rather than admin config, it can't be viewed or changed by anyone through the admin UI — not even someone holding the `Gaurav_AiReports::config` permission. Changing it requires server file access, the same bar as Magento's own DB credentials. This connection is never the same one Magento's application code uses for everything else.
 2. **A forced read-only session.** On top of the MySQL user's own `GRANT`s, every connection this module opens issues `SET SESSION TRANSACTION READ ONLY`, so even a misconfigured grant can't result in a write.
 3. **Query validation before execution.** Only `SELECT` / `SHOW` / `EXPLAIN` / `DESCRIBE` statements are allowed; SQL comments and multiple statements are rejected outright (rather than silently truncated); a keyword blocklist catches destructive/administrative statements and file-system functions (`INTO OUTFILE`, `LOAD_FILE`, etc.).
 4. **A non-configurable table denylist.** Credential/token tables (`admin_user`, `oauth_token`, `api_key`, `vault_payment_token`, `core_config_data`, and others) can never be queried, no matter what an admin sets in config. Store-specific sensitive tables (e.g. `customer_entity`) can be added on top of that floor.
@@ -47,12 +47,12 @@ Known limitation: every admin with query access queries through the same read-on
 |---|---|
 | **Reports > AI SQL Reports** | The "Ask the Database" tool itself. |
 | **Reports > AI Reports Query Log** | Audit grid — every prompt/query run through the tool, by whom, when, and with what result. Requires the `Gaurav_AiReports::log` permission. |
-| **Stores > Configuration > AI Reports Configuration** | AI provider connection, read-only database credentials, and security guardrails. Requires the `Gaurav_AiReports::config` permission. |
+| **Stores > Configuration > AI Reports Configuration** | AI provider connection and security guardrails. Requires the `Gaurav_AiReports::config` permission. |
 
 ### System Configuration
 
 - **AI Connection Settings** — provider (OpenAI, Anthropic, Google Gemini, or Custom/OpenAI-compatible for Azure OpenAI, Ollama, Groq, OpenRouter, vLLM, etc.), API key, API endpoint URL (must be HTTPS), exact model ID (e.g. `gpt-4o`, `claude-sonnet-5`, `gemini-1.5-flash` — not a marketing name), and a system prompt describing your database schema to the AI.
-- **Read-Only Database Connection** — the dedicated MySQL username/password described above.
+- **Read-Only Database Connection** — informational only; shows the exact `env.php` snippet and `GRANT` SQL needed. There's nothing to fill in here on purpose (see above).
 - **Security Guardrails** — the master enable switch (off by default), max rows per query, query timeout, and any additional blocked tables.
 
 ---
@@ -79,9 +79,19 @@ The `generate-whitelist` step is required because this module ships a database t
    FLUSH PRIVILEGES;
    ```
    Restrict the host part (`'%'`) to your application server where possible, and consider revoking `SELECT` on individual sensitive tables for extra defense in depth on top of the module's own denylist.
-2. Go to **Stores > Configuration > AI Reports Configuration** and fill in the read-only username/password, your AI provider details, and review the guardrails.
-3. Flip **Enable Query Tool** to Yes.
-4. Assign `Gaurav_AiReports::query`, `Gaurav_AiReports::log`, and `Gaurav_AiReports::config` to admin roles individually, based on who should be able to run queries, review the audit trail, and manage credentials, respectively.
+2. **Add the credentials to `app/etc/env.php`** (never to admin config, and never commit this file):
+   ```php
+   'aireports' => [
+       'readonly_connection' => [
+           'username' => 'aireports_ro',
+           'password' => 'a-strong-random-password',
+       ],
+   ],
+   ```
+   Deploy/restart so the new `env.php` is picked up.
+3. Go to **Stores > Configuration > AI Reports Configuration** and fill in your AI provider details, then review the guardrails.
+4. Flip **Enable Query Tool** to Yes.
+5. Assign `Gaurav_AiReports::query`, `Gaurav_AiReports::log`, and `Gaurav_AiReports::config` to admin roles individually, based on who should be able to run queries, review the audit trail, and manage AI provider settings, respectively. `env.php` access (and therefore the DB credential) is controlled entirely outside Magento's ACL, at the server/deploy level.
 
 ## License
 

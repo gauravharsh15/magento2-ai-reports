@@ -4,7 +4,6 @@ namespace Gaurav\AiReports\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\DeploymentConfig;
-use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
 
 /**
@@ -17,12 +16,18 @@ class Config
     const XML_PATH_QUERY_TIMEOUT = 'aireports/guardrails/query_timeout_seconds';
     const XML_PATH_BLOCKED_TABLES = 'aireports/guardrails/blocked_tables';
 
-    const XML_PATH_DB_USERNAME = 'aireports/readonly_connection/db_username';
-    const XML_PATH_DB_PASSWORD = 'aireports/readonly_connection/db_password';
-
-    /** Host/schema always come from Magento's own env.php - never re-entered by the admin. */
+    /**
+     * The read-only connection's host/schema/username/password all come
+     * from app/etc/env.php, never from admin config. This is deliberate:
+     * env.php can't be edited from the admin UI at all, so the credential
+     * stays out of reach even for an admin holding the Gaurav_AiReports::config
+     * ACL resource - changing it requires server file access, the same bar
+     * as Magento's own DB credentials.
+     */
     const DEPLOYMENT_CONFIG_PATH_HOST = 'db/connection/default/host';
     const DEPLOYMENT_CONFIG_PATH_DBNAME = 'db/connection/default/dbname';
+    const DEPLOYMENT_CONFIG_PATH_USERNAME = 'aireports/readonly_connection/username';
+    const DEPLOYMENT_CONFIG_PATH_PASSWORD = 'aireports/readonly_connection/password';
 
     const DEFAULT_MAX_ROWS = 1000;
     const DEFAULT_QUERY_TIMEOUT = 5;
@@ -49,16 +54,13 @@ class Config
     ];
 
     private $scopeConfig;
-    private $encryptor;
     private $deploymentConfig;
 
     public function __construct(
         ScopeConfigInterface $scopeConfig,
-        EncryptorInterface $encryptor,
         DeploymentConfig $deploymentConfig
     ) {
         $this->scopeConfig = $scopeConfig;
-        $this->encryptor = $encryptor;
         $this->deploymentConfig = $deploymentConfig;
     }
 
@@ -97,16 +99,16 @@ class Config
 
     /**
      * Returns the connection parameters for the dedicated read-only reporting
-     * user, or null if it hasn't been configured yet. Host and schema are
-     * always Magento's own (from env.php) - only the credentials differ, so
-     * there's nothing for an admin to mistype or point at the wrong place.
+     * user, or null if it hasn't been configured yet. Everything here comes
+     * from app/etc/env.php - nothing in this method touches admin config, by
+     * design.
      */
     public function getReadOnlyDbConfig(): ?array
     {
         $host = trim((string) $this->deploymentConfig->get(self::DEPLOYMENT_CONFIG_PATH_HOST));
         $dbName = trim((string) $this->deploymentConfig->get(self::DEPLOYMENT_CONFIG_PATH_DBNAME));
-        $username = trim((string) $this->scopeConfig->getValue(self::XML_PATH_DB_USERNAME, ScopeInterface::SCOPE_STORE));
-        $encryptedPassword = (string) $this->scopeConfig->getValue(self::XML_PATH_DB_PASSWORD, ScopeInterface::SCOPE_STORE);
+        $username = trim((string) $this->deploymentConfig->get(self::DEPLOYMENT_CONFIG_PATH_USERNAME));
+        $password = (string) $this->deploymentConfig->get(self::DEPLOYMENT_CONFIG_PATH_PASSWORD);
 
         if ($host === '' || $dbName === '' || $username === '') {
             return null;
@@ -116,7 +118,7 @@ class Config
             'host' => $host,
             'dbname' => $dbName,
             'username' => $username,
-            'password' => $encryptedPassword !== '' ? $this->encryptor->decrypt($encryptedPassword) : '',
+            'password' => $password,
         ];
     }
 }
