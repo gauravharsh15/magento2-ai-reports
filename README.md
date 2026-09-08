@@ -1,65 +1,88 @@
-# Gaurav AI Report for Magento 2
+# Gaurav AI Reports for Magento 2
 
-An intelligent, automated reporting engine that leverages AI to analyze Magento store data and generate actionable insights without manual data crunching.
+A natural-language-to-SQL reporting tool for Adobe Commerce / Magento 2. Type a question in plain English in the admin, an LLM (OpenAI, Anthropic, Google Gemini, or any OpenAI-compatible endpoint) turns it into a `SELECT` query, and the module runs it against a dedicated **read-only** database connection and shows you the results.
 
-## 📖 Why This Module?
+```
+"Show me the top 5 customers by grand total spent"
+```
 
-Traditional Magento reporting requires store owners and developers to manually export CSVs, sift through complex grid data, or write custom SQL queries to figure out what's going on. 
+## Why this module?
 
-**Gaurav_AiReport** changes the paradigm by introducing an LLM-powered (Large Language Model) assistant directly into your Adobe Commerce environment. 
-* **Automated Insights:** Turns raw data (like [sales trends / system logs / code health]) into easy-to-read human summaries.
-* **Proactive Recommendations:** Doesn't just tell you *what* happened, but uses AI to suggest *what to do next*.
-* **Time Saving:** Replaces hours of manual monthly auditing with a single scheduled report.
+Store owners and support staff often need one-off answers from the database — "how many orders over $10k this year", "which customers haven't ordered in 6 months" — without waiting on a developer to write SQL or build a report. This module lets a trusted admin ask in plain English and get a table of results back in seconds, while enforcing that the tool can never write, alter, or delete anything.
 
----
+## Preview
 
-## 🖥️ Preview & UI
-
-### 1. The AI Insights Dashboard
-![AI Insights Dashboard](docs/dashboard.png)
-*A clean, centralized view where administrators can read AI-generated summaries of the store's performance and health metrics.*
-
-### 2. Module Configuration & API Setup
-![Configuration Settings](docs/config.png)
-*Easily connect your preferred AI provider (OpenAI, Gemini, etc.), set up automated reporting schedules, and define which data points the AI is allowed to analyze.*
-
----
-
-## ⚙️ Configuration & Navigation
-
-After installation, you can configure the AI engine and view your reports via the following paths:
-
-### AI Reports Dashboard
-Navigate to: **Reports > Gaurav Extensions > AI Store Reports**
-*This is where you view your generated AI summaries, past report history, and actionable recommendations.*
+### Ask the Database
+![Ask the Database](docs/dashboard.png)
+*Type a request in plain English; the generated SQL and the results table are both shown, with the SQL panel collapsed by default.*
 
 ### System Configuration
-Navigate to: **Stores > Configuration > Gaurav Extensions > AI Report**
-Here you can configure:
-* **Enable/Disable:** Master switch for the module.
-* **API Credentials:** Enter your [OpenAI / Gemini / Anthropic] Secret Key.
-* **Model Selection:** Choose which LLM model to use (e.g., `gpt-4o`, `gemini-1.5-pro`) to balance speed and intelligence.
-* **Report Frequency:** Configure the cron schedule (Daily, Weekly, Monthly) for automated report generation.
-* **Data Scopes:** Toggle which data the AI has access to (e.g., [Order Data, Error Logs, Catalog Statistics]).
+![Configuration Settings](docs/config.png)
+*Connect an AI provider, choose a model, and instruct the assistant about your database structure via the system prompt.*
 
 ---
 
-## 🏗️ Technical Architecture
+## How it's secured
 
-This module is built with strict adherence to Magento performance and security standards:
-* **Secure Data Handling:** Only aggregated, anonymized data is sent to the LLM API. **No Personally Identifiable Information (PII) like customer names or raw credit card data ever leaves your server.**
-* **Asynchronous Processing:** API calls to the LLM are handled via Magento's background Message Queue / Cron system to ensure the Admin UI never freezes while waiting for a response.
-* **Cost Control:** Includes built-in token-limiters and caching so you don't accidentally run up a massive API bill.
+This module executes AI-generated SQL against your production database, so read-only access is enforced at multiple independent layers rather than relying on any single check:
+
+1. **A dedicated, credentialed-separately, read-only MySQL user.** The tool refuses to run at all until you configure one under *Stores > Configuration > AI Reports > Read-Only Database Connection*. It connects to the same host/schema Magento already uses (from `env.php`) — only the username and password differ, so there's nothing to mistype. This connection is never the same one Magento's application code uses for everything else.
+2. **A forced read-only session.** On top of the MySQL user's own `GRANT`s, every connection this module opens issues `SET SESSION TRANSACTION READ ONLY`, so even a misconfigured grant can't result in a write.
+3. **Query validation before execution.** Only `SELECT` / `SHOW` / `EXPLAIN` / `DESCRIBE` statements are allowed; SQL comments and multiple statements are rejected outright (rather than silently truncated); a keyword blocklist catches destructive/administrative statements and file-system functions (`INTO OUTFILE`, `LOAD_FILE`, etc.).
+4. **A non-configurable table denylist.** Credential/token tables (`admin_user`, `oauth_token`, `api_key`, `vault_payment_token`, `core_config_data`, and others) can never be queried, no matter what an admin sets in config. Store-specific sensitive tables (e.g. `customer_entity`) can be added on top of that floor.
+5. **Guardrails against abuse.** An automatic row `LIMIT` (default 1000) is appended to any query that doesn't specify one; a best-effort per-query execution timeout is set; prompts are capped at 2000 characters.
+6. **Output is escaped, not trusted.** Every value rendered from a query result goes through HTML-escaping before it touches the page (result rows come from the database, not from a fixed template, so this matters). CSV export additionally guards against formula-injection (a cell starting with `=`, `+`, `-`, or `@` is neutralized so it can't execute as a formula when opened in Excel/Sheets).
+7. **HTTPS-only, timeout-bound AI calls.** The configured API endpoint must be HTTPS; requests don't follow redirects and have connect/total timeouts, so a slow or hijacked endpoint can't hang the admin or leak the API key to a redirect target.
+8. **Two independent ACL permissions.** *Run queries* (`Gaurav_AiReports::query`) and *edit configuration, including credentials* (`Gaurav_AiReports::config`) are separate resources — a role can be granted one without the other. Reviewing the audit trail (`Gaurav_AiReports::log`, see below) is a third, independent permission.
+9. **Full audit trail.** Every prompt/query is logged with the admin's username, IP address, the SQL that ran, success/failure, and row count — both to a dedicated log file and to a database table with an admin grid to browse it (see below).
+10. **Config that can't drift per scope.** The read-only credentials and all guardrail settings are locked to the global/default scope, so there's no way for a website- or store-view-level override to leave one scope less protected than the others.
+
+Known limitation: every admin with query access queries through the same read-only connection, so all query-tool users currently see the same restricted view of the database (governed by the table denylist). Per-role data restrictions (e.g. a marketing role seeing less than an operations role) aren't implemented.
 
 ---
 
-## 🛠️ Installation & Setup
+## Navigation
 
-Standard installation via Composer:
+| Location | Purpose |
+|---|---|
+| **Reports > AI SQL Reports** | The "Ask the Database" tool itself. |
+| **Reports > AI Reports Query Log** | Audit grid — every prompt/query run through the tool, by whom, when, and with what result. Requires the `Gaurav_AiReports::log` permission. |
+| **Stores > Configuration > AI Reports Configuration** | AI provider connection, read-only database credentials, and security guardrails. Requires the `Gaurav_AiReports::config` permission. |
+
+### System Configuration
+
+- **AI Connection Settings** — provider (OpenAI, Anthropic, Google Gemini, or Custom/OpenAI-compatible for Azure OpenAI, Ollama, Groq, OpenRouter, vLLM, etc.), API key, API endpoint URL (must be HTTPS), exact model ID (e.g. `gpt-4o`, `claude-sonnet-5`, `gemini-1.5-flash` — not a marketing name), and a system prompt describing your database schema to the AI.
+- **Read-Only Database Connection** — the dedicated MySQL username/password described above.
+- **Security Guardrails** — the master enable switch (off by default), max rows per query, query timeout, and any additional blocked tables.
+
+---
+
+## Installation
 
 ```bash
-composer require gauravharsh/module-ai-report
-bin/magento module:enable Gaurav_AiReport
+composer require gauravharsh/module-ai-reports
+bin/magento module:enable Gaurav_AiReports
 bin/magento setup:upgrade
+bin/magento setup:db-declaration:generate-whitelist --module-name=Gaurav_AiReports
 bin/magento setup:di:compile
 bin/magento cache:flush
+```
+
+The `generate-whitelist` step is required because this module ships a database table for the audit log (`gaurav_aireports_query_log`) via declarative schema.
+
+## Setup after installing
+
+1. **Create the read-only MySQL user** (adjust the database name to match your `env.php`):
+   ```sql
+   CREATE USER 'aireports_ro'@'%' IDENTIFIED BY 'a-strong-random-password';
+   GRANT SELECT ON your_database_name.* TO 'aireports_ro'@'%';
+   FLUSH PRIVILEGES;
+   ```
+   Restrict the host part (`'%'`) to your application server where possible, and consider revoking `SELECT` on individual sensitive tables for extra defense in depth on top of the module's own denylist.
+2. Go to **Stores > Configuration > AI Reports Configuration** and fill in the read-only username/password, your AI provider details, and review the guardrails.
+3. Flip **Enable Query Tool** to Yes.
+4. Assign `Gaurav_AiReports::query`, `Gaurav_AiReports::log`, and `Gaurav_AiReports::config` to admin roles individually, based on who should be able to run queries, review the audit trail, and manage credentials, respectively.
+
+## License
+
+OSL-3.0 / AFL-3.0

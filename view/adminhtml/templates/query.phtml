@@ -7,9 +7,13 @@
     <button id="execute_ai_query" class="action-primary" type="button" style="padding: 10px 20px; font-weight: bold;">Generate & Execute SQL</button>
 </div>
 
-<div id="ai_sql_container" style="display: none; background: #f4f4f4; padding: 15px; border-left: 4px solid #eb5202; margin-bottom: 20px; font-family: monospace;">
-    <h4 style="margin-top: 0; color: #333;">Generated SQL Query:</h4>
-    <pre style="margin: 0; white-space: pre-wrap; word-break: break-all; color: #d64937;"><code id="ai_sql_output"></code></pre>
+<div id="ai_sql_container" style="display: none; background: #f4f4f4; border-left: 4px solid #eb5202; margin-bottom: 20px; font-family: monospace;">
+    <h4 id="ai_sql_toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="ai_sql_body"
+        style="margin: 0; padding: 12px 15px; color: #333; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between;">
+        <span>Generated SQL Query <span style="font-weight: normal; color: #999; font-size: 12px;">(click to view)</span></span>
+        <span id="ai_sql_arrow" style="font-family: sans-serif; display: inline-block; transition: transform 0.15s ease;">&#9656;</span>
+    </h4>
+    <pre id="ai_sql_body" style="display: none; margin: 0; padding: 0 15px 15px; white-space: pre-wrap; word-break: break-all; color: #d64937;"><code id="ai_sql_output"></code></pre>
 </div>
 
 <div id="ai_results_container" style="display: none; background: #fff; padding: 20px; border: 1px solid #ccc; overflow-x: auto;">
@@ -28,6 +32,44 @@
 <script>
 require(['jquery', 'mage/url'], function($, urlBuilder) {
     var latestData = [];
+
+    // Escapes a value for safe insertion into HTML markup. Result rows come
+    // straight from the database (via an AI-generated query), so they must
+    // never be treated as trusted HTML - a text/description field containing
+    // "<img src=x onerror=...>" would otherwise execute in the admin's
+    // authenticated session.
+    function escapeHtml(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        var div = document.createElement('div');
+        div.textContent = String(value);
+        return div.innerHTML;
+    }
+
+    // The generated SQL is collapsed by default - it's a debugging/trust
+    // detail for people who want to see what ran, not the main content.
+    function collapseSqlSection() {
+        $('#ai_sql_toggle').attr('aria-expanded', 'false');
+        $('#ai_sql_body').hide();
+        $('#ai_sql_arrow').css('transform', 'rotate(0deg)');
+    }
+
+    function toggleSqlSection() {
+        var expanded = $('#ai_sql_toggle').attr('aria-expanded') === 'true';
+        $('#ai_sql_toggle').attr('aria-expanded', String(!expanded));
+        $('#ai_sql_body').slideToggle(150);
+        $('#ai_sql_arrow').css('transform', expanded ? 'rotate(0deg)' : 'rotate(90deg)');
+    }
+
+    $('#ai_sql_toggle').on('click', toggleSqlSection);
+    $('#ai_sql_toggle').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            toggleSqlSection();
+        }
+    });
+
     $('#execute_ai_query').on('click', function() {
         var promptText = $('#ai_prompt').val();
         if(!promptText) {
@@ -40,6 +82,7 @@ require(['jquery', 'mage/url'], function($, urlBuilder) {
         $('#ai_sql_container').hide();
         $('#export_csv').hide();
         $('#ai_results_head, #ai_results_body, #ai_sql_output, #ai_results_count').empty();
+        collapseSqlSection();
         latestData = [];
 
         var ajaxUrl = "<?= $block->escapeUrl($block->getUrl('aireports/query/execute')) ?>";
@@ -53,14 +96,17 @@ require(['jquery', 'mage/url'], function($, urlBuilder) {
             },
             showLoader: true, // This triggers Magento's native admin full-screen loader
             success: function(response) {
+                // Show the last attempted SQL (still collapsed) even on
+                // failure, so a rejected/broken query can be inspected
+                // instead of only seeing the error message.
+                if (response.sql_executed) {
+                    $('#ai_sql_output').text(response.sql_executed);
+                    $('#ai_sql_container').show();
+                }
+
                 if(response.error) {
                     alert("Error: " + response.message);
                     return;
-                }
-
-                if(response.sql_executed) {
-                    $('#ai_sql_output').text(response.sql_executed);
-                    $('#ai_sql_container').show();
                 }
 
                 if(response.data && response.data.length > 0) {
@@ -75,7 +121,7 @@ require(['jquery', 'mage/url'], function($, urlBuilder) {
                     var columns = Object.keys(response.data[0]);
                     var headerHtml = '';
                     columns.forEach(function(col) {
-                        headerHtml += '<th class="data-grid-th">' + col + '</th>';
+                        headerHtml += '<th class="data-grid-th">' + escapeHtml(col) + '</th>';
                     });
                     $('#ai_results_head').html(headerHtml);
 
@@ -83,7 +129,7 @@ require(['jquery', 'mage/url'], function($, urlBuilder) {
                     response.data.forEach(function(row) {
                         bodyHtml += '<tr>';
                         columns.forEach(function(col) {
-                            bodyHtml += '<td>' + (row[col] !== null ? row[col] : '<em>NULL</em>') + '</td>';
+                            bodyHtml += '<td>' + (row[col] !== null ? escapeHtml(row[col]) : '<em>NULL</em>') + '</td>';
                         });
                         bodyHtml += '</tr>';
                     });
@@ -106,13 +152,25 @@ require(['jquery', 'mage/url'], function($, urlBuilder) {
 
         var columns = Object.keys(latestData[0]);
         var csvContent = "data:text/csv;charset=utf-8,";
-        
-        csvContent += columns.join(",") + "\r\n";
-        
+
+        // Neutralize CSV/formula injection: a cell starting with =, +, -, @,
+        // tab or CR can be interpreted as a formula by Excel/Sheets when the
+        // file is opened, which can lead to remote code execution or data
+        // exfiltration client-side. Applies to column names too, since those
+        // are AI-generated aliases, not fixed strings.
+        function toCsvField(value) {
+            var cellData = value !== null && value !== undefined ? String(value) : '';
+            if (/^[=+\-@\t\r]/.test(cellData)) {
+                cellData = "'" + cellData;
+            }
+            return '"' + cellData.replace(/"/g, '""') + '"';
+        }
+
+        csvContent += columns.map(toCsvField).join(",") + "\r\n";
+
         latestData.forEach(function(row) {
             var rowArray = columns.map(function(col) {
-                var cellData = row[col] !== null ? String(row[col]) : '';
-                return '"' + cellData.replace(/"/g, '""') + '"'; 
+                return toCsvField(row[col]);
             });
             csvContent += rowArray.join(",") + "\r\n";
         });

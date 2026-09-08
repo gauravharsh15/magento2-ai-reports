@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="gaurav_aireports_query_log" resource="default" engine="innodb" comment="AI Reports Query Audit Log">
+        <column xsi:type="int" name="entity_id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity Id"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP" comment="Created At"/>
+        <column xsi:type="int" name="admin_user_id" padding="10" unsigned="true" nullable="true" comment="Admin User Id"/>
+        <column xsi:type="varchar" name="admin_username" nullable="false" length="128" comment="Admin Username"/>
+        <column xsi:type="varchar" name="ip_address" nullable="true" length="45" comment="IP Address"/>
+        <column xsi:type="text" name="prompt" nullable="false" comment="Original Prompt"/>
+        <column xsi:type="text" name="sql_executed" nullable="true" comment="Last SQL Attempted Or Executed"/>
+        <column xsi:type="smallint" name="success" padding="5" unsigned="true" nullable="false" default="0" comment="Success Flag"/>
+        <column xsi:type="int" name="row_count" padding="10" unsigned="true" nullable="true" comment="Row Count Returned"/>
+        <column xsi:type="text" name="error_message" nullable="true" comment="Error Message"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <index referenceId="GAURAV_AIREPORTS_QUERY_LOG_CREATED_AT" indexType="btree">
+            <column name="created_at"/>
+        </index>
+        <index referenceId="GAURAV_AIREPORTS_QUERY_LOG_ADMIN_USERNAME" indexType="btree">
+            <column name="admin_username"/>
+        </index>
+    </table>
+</schema>

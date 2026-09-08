@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <aireports>
+            <guardrails>
+                <enabled>0</enabled>
+                <max_rows>1000</max_rows>
+                <query_timeout_seconds>5</query_timeout_seconds>
+                <blocked_tables></blocked_tables>
+            </guardrails>
+        </aireports>
+    </default>
+</config>

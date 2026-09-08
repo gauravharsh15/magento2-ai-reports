@@ -4,6 +4,7 @@
         <resources>
             <resource id="Magento_Backend::admin">
                 <resource id="Gaurav_AiReports::query" title="AI Reports" sortOrder="10" />
+                <resource id="Gaurav_AiReports::log" title="AI Reports Query Log" sortOrder="20" />
                 <resource id="Magento_Backend::stores">
                     <resource id="Magento_Backend::stores_settings">
                         <resource id="Magento_Config::config">

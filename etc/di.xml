@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!--
+        Every prompt/query touches production data, so it gets its own log
+        file (var/log/aireports.log) instead of being mixed into system.log -
+        that's how "who ran what, and when" stays easy to find and audit.
+    -->
+    <virtualType name="Gaurav\AiReports\Logger\Handler" type="Magento\Framework\Logger\Handler\Base">
+        <arguments>
+            <argument name="fileName" xsi:type="string">/var/log/aireports.log</argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Gaurav\AiReports\Logger\Logger" type="Magento\Framework\Logger\Monolog">
+        <arguments>
+            <argument name="name" xsi:type="string">aireports</argument>
+            <argument name="handlers" xsi:type="array">
+                <item name="system" xsi:type="object">Gaurav\AiReports\Logger\Handler</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Gaurav\AiReports\Controller\Adminhtml\Query\Execute">
+        <arguments>
+            <argument name="logger" xsi:type="object">Gaurav\AiReports\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Gaurav\AiReports\Model\QueryExecutor">
+        <arguments>
+            <argument name="logger" xsi:type="object">Gaurav\AiReports\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <type name="Gaurav\AiReports\Model\Connection\ReadOnlyConnectionFactory">
+        <arguments>
+            <argument name="logger" xsi:type="object">Gaurav\AiReports\Logger\Logger</argument>
+        </arguments>
+    </type>
+
+    <!-- Backs the "AI Reports Query Log" admin grid with filtering/sorting/paging on the audit table. -->
+    <virtualType name="Gaurav\AiReports\Model\ResourceModel\QueryLog\Grid\Collection" type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">gaurav_aireports_query_log</argument>
+            <argument name="resourceModel" xsi:type="string">Gaurav\AiReports\Model\ResourceModel\QueryLog</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
+        <arguments>
+            <argument name="collections" xsi:type="array">
+                <item name="aireports_log_listing_data_source" xsi:type="string">Gaurav\AiReports\Model\ResourceModel\QueryLog\Grid\Collection</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_components.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">aireports_log_listing.aireports_log_listing_data_source</item>
+        </item>
+    </argument>
+    <settings>
+        <spinner>aireports_log_columns</spinner>
+        <deps>
+            <dep>aireports_log_listing.aireports_log_listing_data_source</dep>
+        </deps>
+    </settings>
+    <dataSource name="aireports_log_listing_data_source">
+        <argument name="dataProvider" xsi:type="configurableObject">
+            <argument name="class" xsi:type="string">Magento\Framework\View\Element\UiComponent\DataProvider\DataProvider</argument>
+            <argument name="name" xsi:type="string">aireports_log_listing_data_source</argument>
+            <argument name="primaryFieldName" xsi:type="string">entity_id</argument>
+            <argument name="requestFieldName" xsi:type="string">id</argument>
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="update_url" xsi:type="url" path="mui/index/render"/>
+                </item>
+            </argument>
+        </argument>
+        <argument name="data" xsi:type="array">
+            <item name="js_config" xsi:type="array">
+                <item name="component" xsi:type="string">Magento_Ui/js/grid/provider</item>
+            </item>
+        </argument>
+    </dataSource>
+    <listingToolbar name="listing_top">
+        <settings>
+            <sticky>true</sticky>
+        </settings>
+        <bookmark name="bookmarks"/>
+        <columnsControls name="columns_controls"/>
+        <filters name="listing_filters"/>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+    <columns name="aireports_log_columns">
+        <settings>
+            <editorConfig>
+                <param name="enabled" xsi:type="boolean">false</param>
+            </editorConfig>
+        </settings>
+        <column name="entity_id" sortOrder="10">
+            <settings>
+                <filter>textRange</filter>
+                <label translate="true">ID</label>
+                <sorting>desc</sorting>
+            </settings>
+        </column>
+        <column name="created_at" xsi:type="date" sortOrder="20">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Date</label>
+            </settings>
+        </column>
+        <column name="admin_username" sortOrder="30">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Admin User</label>
+            </settings>
+        </column>
+        <column name="ip_address" sortOrder="40">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">IP Address</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+        <column name="prompt" sortOrder="50">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Prompt</label>
+            </settings>
+        </column>
+        <column name="sql_executed" sortOrder="60">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">SQL Executed</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+        <column name="success" component="Magento_Ui/js/grid/columns/select" sortOrder="70">
+            <settings>
+                <options class="Gaurav\AiReports\Model\Config\Source\SuccessStatus"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Status</label>
+            </settings>
+        </column>
+        <column name="row_count" sortOrder="80">
+            <settings>
+                <filter>textRange</filter>
+                <label translate="true">Rows Returned</label>
+            </settings>
+        </column>
+        <column name="error_message" sortOrder="90">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Error</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+    </columns>
+</listing>

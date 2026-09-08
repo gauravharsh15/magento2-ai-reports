@@ -35,13 +35,83 @@
                 <field id="model_name" translate="label" type="text" sortOrder="18"
                     showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Model Name</label>
-                    <comment>e.g., gpt-4o, claude-3-opus-20240229, gemini-1.5-flash</comment>
+                    <comment><![CDATA[Must be the exact model ID from your provider's API docs, not a marketing name - e.g. gpt-4o, claude-sonnet-5, claude-opus-5, gemini-1.5-flash. For "Custom / OpenAI-Compatible", use whatever model ID your endpoint expects.]]></comment>
                 </field>
 
                 <field id="system_prompt" translate="label" type="textarea" sortOrder="20"
                     showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Base System Prompt</label>
                     <comment>Instruct the AI about your database architecture.</comment>
+                </field>
+            </group>
+
+            <group id="readonly_connection" translate="label" type="text" sortOrder="20" showInDefault="1"
+                showInWebsite="0" showInStore="0">
+                <label>Read-Only Database Connection</label>
+                <comment><![CDATA[
+                    Global only - there is one database, so this can't safely vary per website/store view.
+                    This tool must run against a dedicated MySQL user that only has SELECT
+                    privileges - never the Magento application's own read/write user. It connects to the
+                    same host and database as Magento itself (from env.php); only the credentials below
+                    differ. Create the user with:<br/>
+                    <code>CREATE USER 'aireports_ro'@'%' IDENTIFIED BY 'a-strong-random-password';<br/>
+                    GRANT SELECT ON your_database_name.* TO 'aireports_ro'@'%';<br/>
+                    FLUSH PRIVILEGES;</code><br/>
+                    Restrict the host part ('%') to your application server's IP where possible, and
+                    consider REVOKE SELECT on individual sensitive tables (e.g. admin_user, oauth_token,
+                    vault_payment_token) for extra defense in depth on top of the module's own guardrails below.
+                    Until this is configured, the query tool refuses to run.
+                ]]></comment>
+
+                <field id="db_username" translate="label" type="text" sortOrder="10" showInDefault="1"
+                    showInWebsite="0" showInStore="0">
+                    <label>Read-Only Username</label>
+                    <comment>Must be a MySQL user granted SELECT only - never the main Magento database user.</comment>
+                </field>
+
+                <field id="db_password" translate="label" type="obscure" sortOrder="20"
+                    showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Read-Only Password</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+            </group>
+
+            <group id="guardrails" translate="label" type="text" sortOrder="30" showInDefault="1"
+                showInWebsite="0" showInStore="0">
+                <label>Security Guardrails</label>
+                <comment><![CDATA[Global only - a per-website/store-view override here could leave one scope less protected than the others without anyone noticing.]]></comment>
+
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1"
+                    showInWebsite="0" showInStore="0">
+                    <label>Enable Query Tool</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Master switch. Keep disabled until the read-only database user above is configured and verified.</comment>
+                </field>
+
+                <field id="max_rows" translate="label" type="text" sortOrder="20" showInDefault="1"
+                    showInWebsite="0" showInStore="0">
+                    <label>Max Rows Per Query</label>
+                    <comment>A LIMIT is automatically appended to any generated query that doesn't already have one. Default: 1000.</comment>
+                    <validate>validate-digits validate-greater-than-zero</validate>
+                </field>
+
+                <field id="query_timeout_seconds" translate="label" type="text" sortOrder="30" showInDefault="1"
+                    showInWebsite="0" showInStore="0">
+                    <label>Query Timeout (seconds)</label>
+                    <comment>Best-effort server-side execution timeout (MySQL 5.7.8+ only; ignored on MariaDB). Default: 5.</comment>
+                    <validate>validate-digits validate-greater-than-zero</validate>
+                </field>
+
+                <field id="blocked_tables" translate="label" type="textarea" sortOrder="40" showInDefault="1"
+                    showInWebsite="0" showInStore="0">
+                    <label>Additional Blocked Tables</label>
+                    <comment><![CDATA[
+                        Comma-separated table names the AI is never allowed to reference, on top of a
+                        built-in, non-configurable list that already always blocks credential/token
+                        tables such as admin_user, oauth_token, api_key, vault_payment_token and
+                        core_config_data. Add any store-specific tables containing PII or secrets here,
+                        e.g. customer_entity,newsletter_subscriber
+                    ]]></comment>
                 </field>
             </group>
         </section>
