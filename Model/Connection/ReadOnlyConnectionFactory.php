@@ -3,6 +3,7 @@
 namespace Gaurav\AiReports\Model\Connection;
 
 use Magento\Framework\DB\Adapter\AdapterInterface;
+use Magento\Framework\DB\Adapter\Pdo\Mysql;
 use Magento\Framework\DB\Adapter\Pdo\MysqlFactory;
 use Psr\Log\LoggerInterface;
 
@@ -29,13 +30,15 @@ class ReadOnlyConnectionFactory
 
     public function create(array $dbConfig): AdapterInterface
     {
-        $connection = $this->mysqlFactory->create([
+        // MysqlFactory::create() takes the target adapter class as its first
+        // argument (it's a generic factory that can build any Mysql subclass),
+        // then the connection config array as the second.
+        $connection = $this->mysqlFactory->create(Mysql::class, [
             'host' => $dbConfig['host'],
             'dbname' => $dbConfig['dbname'],
             'username' => $dbConfig['username'],
             'password' => $dbConfig['password'],
             'model' => 'mysql4',
-            'type' => 'pdo_mysql',
             'engine' => 'innodb',
             'active' => true,
             'persistent' => false,
