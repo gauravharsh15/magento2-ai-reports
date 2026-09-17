@@ -49,8 +49,10 @@ class Config
         'authorization_rule',
         'admin_role',
         'vault_payment_token',
+        'vault_payment_token_order_payment_link',
         'sales_payment_token',
         'core_config_data',
+        'tfa_user_config',
     ];
 
     private $scopeConfig;
