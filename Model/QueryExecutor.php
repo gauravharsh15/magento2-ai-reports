@@ -25,6 +25,30 @@ class QueryExecutor
         'USE', 'START', 'COMMIT', 'ROLLBACK', 'SAVEPOINT', 'FLUSH', 'RESET',
     ];
 
+    /**
+     * MySQL's own metadata/system schemas. A business-reporting tool never
+     * legitimately needs these - allowing them let queries enumerate every
+     * table/column name in the database (including a hunt for columns named
+     * like "secret") and read other sessions' connection info, neither of
+     * which is "business data".
+     */
+    private const BLOCKED_SCHEMAS = [
+        'information_schema',
+        'performance_schema',
+        'mysql',
+        'sys',
+    ];
+
+    /**
+     * Functions/variables that disclose server or session environment
+     * details rather than business data (MySQL version, current schema,
+     * connected user, session variables). None of these are privilege-gated
+     * in MySQL - any authenticated connection can call them regardless of
+     * GRANTs, so this can only be closed here, not at the database layer.
+     */
+    private const INTROSPECTION_PATTERN =
+        '/(@@|\bVERSION\s*\(|\bDATABASE\s*\(|\bSCHEMA\s*\(|\bUSER\s*\(|\bCURRENT_USER\b|\bSYSTEM_USER\b|\bSESSION_USER\b|\bCONNECTION_ID\s*\()/i';
+
     private $config;
     private $connectionFactory;
     private $logger;
@@ -102,8 +126,13 @@ class QueryExecutor
             throw new \Exception('Security Exception: Multiple SQL statements are not permitted.');
         }
 
-        if (!preg_match('/^\s*(SELECT|SHOW|EXPLAIN|DESC|DESCRIBE)\b/i', $sql)) {
-            throw new \Exception('Security Exception: Only SELECT/SHOW/EXPLAIN queries are permitted.');
+        // SHOW/EXPLAIN/DESCRIBE used to be allowed for schema exploration, but
+        // that surface is exactly what let queries like SHOW PROCESSLIST,
+        // SHOW GRANTS, and SHOW VARIABLES through - none of the AI's job
+        // requires them (the system prompt already tells it to only use
+        // SELECT), so the whole class is closed by only accepting SELECT.
+        if (!preg_match('/^\s*SELECT\b/i', $sql)) {
+            throw new \Exception('Security Exception: Only SELECT queries are permitted.');
         }
 
         $forbiddenPattern = '/\b(' . implode('|', self::FORBIDDEN_KEYWORDS) . ')\b/i';
@@ -111,9 +140,27 @@ class QueryExecutor
             throw new \Exception('Security Exception: Forbidden keyword "' . strtoupper($matches[1]) . '" detected and blocked.');
         }
 
+        $this->assertNoIntrospection($sql);
+        $this->assertNoBlockedSchemas($sql);
         $this->assertNoBlockedTables($sql);
 
         return $sql;
+    }
+
+    private function assertNoIntrospection(string $sql): void
+    {
+        if (preg_match(self::INTROSPECTION_PATTERN, $sql, $matches)) {
+            throw new \Exception('Security Exception: "' . trim($matches[1], '(') . '" is not permitted - this tool only reports on business data.');
+        }
+    }
+
+    private function assertNoBlockedSchemas(string $sql): void
+    {
+        foreach (self::BLOCKED_SCHEMAS as $schema) {
+            if (preg_match('/\b' . preg_quote($schema, '/') . '\b/i', $sql)) {
+                throw new \Exception('Security Exception: Access to the "' . $schema . '" schema is restricted.');
+            }
+        }
     }
 
     private function assertNoBlockedTables(string $sql): void
