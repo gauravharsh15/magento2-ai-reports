@@ -1,7 +1,14 @@
 <div class="ai-report-container" style="background: #fff; padding: 20px; border: 1px solid #ccc; margin-bottom: 20px;">
     <h2>Ask the Database</h2>
     <p>Enter your request in plain English (e.g., <em>"Show me the top 5 customers by grand total spent"</em>).</p>
-    
+
+    <p style="background: #eef6fc; border-left: 4px solid #2f7cb5; padding: 10px 14px; margin: 0 0 15px; font-size: 13px; color: #333;">
+        Queries run through a dedicated, read-only database connection and can never modify, delete, or
+        export your data outside this page. The SQL and results below are AI-generated from your request -
+        always review the generated query and cross-check important figures before relying on them for
+        business decisions.
+    </p>
+
     <textarea id="ai_prompt" rows="4" style="width: 100%; margin-bottom: 10px; padding: 10px;" placeholder="Type your prompt here..."></textarea>
     
     <button id="execute_ai_query" class="action-primary" type="button" style="padding: 10px 20px; font-weight: bold;">Generate & Execute SQL</button>
