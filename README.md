@@ -1,4 +1,6 @@
-# Gaurav AI Reports for Magento 2
+# AI Reports for Magento 2 (free open-source edition)
+
+> **Looking for more?** [**AI Reports 3**](https://gauravextensions.com) is the commercial edition. It learns your store (tables, attributes, store views and your own business rules), gives written answers as well as tables, double-checks tricky questions, saves reports and shows what every question costs. [See it in action →](https://gauravextensions.com/#tour)
 
 A natural-language-to-SQL reporting tool for Adobe Commerce / Magento 2. Type a question in plain English in the admin, an LLM (OpenAI, Anthropic, Google Gemini, or any OpenAI-compatible endpoint) turns it into a `SELECT` query, and the module runs it against a dedicated **read-only** database connection and shows you the results.
 
@@ -10,11 +12,27 @@ A natural-language-to-SQL reporting tool for Adobe Commerce / Magento 2. Type a 
 
 Store owners and support staff often need one-off answers from the database — "how many orders over $10k this year", "which customers haven't ordered in 6 months" — without waiting on a developer to write SQL or build a report. This module lets a trusted admin ask in plain English and get a table of results back in seconds, while enforcing that the tool can never write, alter, or delete anything.
 
+## Free edition vs AI Reports 3
+
+| | Free (this repo) | [AI Reports 3](https://gauravextensions.com) |
+|---|:---:|:---:|
+| Ask in plain English, get a table and CSV | ✓ | ✓ |
+| Read-only connection, blocked credential tables, audit log | ✓ | ✓ |
+| Snapshot of your store: tables, attributes, store views, modules | | ✓ |
+| Business rules in plain words ("revenue means invoiced orders") | | ✓ |
+| Written answers with evidence, not just rows | | ✓ |
+| Looks up real store views, SKUs and values before writing SQL | | ✓ |
+| Quick / Standard / Thorough presets, with a double-check | | ✓ |
+| Saved reports and approved answers that re-run with no AI cost | | ✓ |
+| Usage panel, monthly budget, daily limit per person | | ✓ |
+| Support | GitHub issues | E-mail |
+| Price | Free, OSL-3.0 / AFL-3.0 | From $399 / year |
+
 ## Preview
 
 ### Ask the Database
 ![Ask the Database](docs/dashboard.png)
-*Type a request in plain English; the generated SQL and the results table are both shown, with the SQL panel collapsed by default.*
+*Type a request in plain English; the generated SQL (collapsed by default) and the results table are shown. Illustration with sample data.*
 
 ### System Configuration
 ![Configuration Settings](docs/config.png)
